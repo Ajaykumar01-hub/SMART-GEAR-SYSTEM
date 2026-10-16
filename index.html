@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Gear Optimization System — Drive Smart, Save Fuel</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Cockpit Header -->
+  <header class="app-header">
+    <div class="brand-wrapper">
+      <div class="brand-symbol">⚙</div>
+      <div class="brand-meta">
+        <h1>Smart Gear Optimizer</h1>
+        <p>Drive Smart, Save Fuel — Telemetry & Shift Advisor</p>
+      </div>
+    </div>
+    <div class="system-status">
+      <span class="pulse-dot"></span>
+      <span id="system-status-text">INITIALIZING ENGINE...</span>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tab-container" role="tablist">
+    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="conditions">Driving Conditions</button>
+    <button class="tab-btn" data-tab="vehicle-config">Vehicle Config</button>
+    <button class="tab-btn" data-tab="fuel-analysis">Fuel & BSFC Analysis</button>
+    <button class="tab-btn" data-tab="eco-tips">Eco Coaching</button>
+    <button class="tab-btn" data-tab="history">Scenario History</button>
+  </nav>
+
+  <!-- Main Viewport -->
+  <main class="main-viewport">
+
+    <!-- ==================== TAB 1: DASHBOARD ==================== -->
+    <section id="tab-dashboard" class="tab-content active">
+      <div class="cockpit-grid">
+        
+        <!-- Left: Telemetry & Dial Gauges -->
+        <div class="telemetry-card">
+          <div class="card-headline">
+            <h2>Cockpit Telemetry</h2>
+            <span id="active-vehicle-label">Compact Hatchback 1.2L</span>
+          </div>
+
+          <div class="gauges-layout">
+            <!-- Speedometer -->
+            <div class="gauge-unit">
+              <canvas id="speedGauge" class="gauge-canvas" width="220" height="220"></canvas>
+              <div class="gauge-readout-center">
+                <span class="readout-value" id="speed-display">60</span>
+                <span class="readout-unit">km/h</span>
+              </div>
+            </div>
+
+            <!-- Tachometer -->
+            <div class="gauge-unit">
+              <canvas id="rpmGauge" class="gauge-canvas" width="220" height="220"></canvas>
+              <div class="gauge-readout-center">
+                <span class="readout-value" id="rpm-display">2450</span>
+                <span class="readout-unit">RPM</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Interactive Controls -->
+          <div class="controls-grid" style="margin-top: 1.5rem;">
+            <div class="form-group">
+              <label>Vehicle Speed <span class="live-val" id="val-speed">60 km/h</span></label>
+              <input type="range" id="input-speed" min="0" max="180" value="60" step="1">
+            </div>
+            <div class="form-group">
+              <label>Engaged Gear <span class="live-val" id="val-gear">Gear 3</span></label>
+              <input type="range" id="input-gear" min="1" max="5" value="3" step="1">
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Real-time Gear Advisor HUD -->
+        <div class="hud-gear-module">
+          <div>
+            <div class="card-headline">
+              <h2>Gear Shift Advisor</h2>
+              <span id="status-tag-banner" class="status-tag optimal">OPTIMAL</span>
+            </div>
+
+            <div class="gear-comparison-strip">
+              <div class="gear-box current">
+                <div class="label">Engaged</div>
+                <div class="value" id="current-gear-num">3</div>
+              </div>
+
+              <div class="shift-indicator-icon" id="shift-arrow">➔</div>
+
+              <div class="gear-box recommended">
+                <div class="label">Recommended</div>
+                <div class="value" id="recommended-gear-num">4</div>
+              </div>
+            </div>
+
+            <!-- Explainability Card -->
+            <div class="explanation-card" id="explanation-box">
+              <div class="explanation-title" id="explanation-title">
+                <span>⚡</span> Recommendation Rationale
+              </div>
+              <div class="explanation-text" id="explanation-text">
+                Analyzing load and engine speed...
+              </div>
+            </div>
+          </div>
+
+          <!-- Metrics summary -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.2rem;">
+            <div style="background: var(--bg-inset); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-subtle);">
+              <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Estimated Fuel Rate</div>
+              <div style="font-family: var(--font-mono); font-size: 1.2rem; color: #fff; margin-top: 0.2rem;" id="fuel-consumption-rate">6.2 L/100km</div>
+            </div>
+            <div style="background: var(--bg-inset); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-subtle);">
+              <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Total Tractive Drag</div>
+              <div style="font-family: var(--font-mono); font-size: 1.2rem; color: var(--brand-cyan); margin-top: 0.2rem;" id="tractive-drag-val">340 N</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Transmission Feasibility Matrix -->
+      <div class="telemetry-card">
+        <div class="card-headline">
+          <h2>Transmission Feasibility Matrix</h2>
+          <span>CURRENT SPEED: <strong id="matrix-speed-badge">60 km/h</strong></span>
+        </div>
+        <div class="matrix-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Gear</th>
+                <th>Ratio</th>
+                <th>Engine RPM</th>
+                <th>Req. Torque (Nm)</th>
+                <th>Operating State</th>
+                <th>Suitability</th>
+              </tr>
+            </thead>
+            <tbody id="gear-matrix-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Live Backend Pipe Inspector (Shows proof of C++ Server Calls) -->
+      <div class="telemetry-card" style="margin-top: 1.5rem;">
+        <div class="card-headline">
+          <h2>Live C++ Backend Pipe Inspector</h2>
+          <span id="api-latency-badge" style="color: var(--brand-emerald); font-family: var(--font-mono);">Latency: 0.0 ms</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-family: var(--font-mono); font-size: 0.76rem;">
+          <div>
+            <div style="color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600;">CLIENT POST REQUEST (To C++ Port 18080)</div>
+            <pre id="inspector-request" style="background: var(--bg-inset); padding: 0.9rem; border-radius: 8px; overflow-x: auto; color: var(--brand-cyan); max-height: 180px;"></pre>
+          </div>
+          <div>
+            <div style="color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600;">C++ ENGINE RESPONSE (Evaluated via OOP Dispatch)</div>
+            <pre id="inspector-response" style="background: var(--bg-inset); padding: 0.9rem; border-radius: 8px; overflow-x: auto; color: var(--brand-emerald); max-height: 180px;"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: DRIVING CONDITIONS ==================== -->
+    <section id="tab-conditions" class="tab-content" style="display: none;">
+      <div class="telemetry-card">
+        <div class="card-headline">
+          <h2>Driving Conditions & Vehicle Payload</h2>
+          <span>REAL-TIME RESISTANCE PARAMETERS</span>
+        </div>
+
+        <div class="controls-grid">
+          <div class="form-group">
+            <label>Road Type</label>
+            <select class="form-control" id="select-road-type">
+              <option value="highway" selected>Smooth Highway (Crr = 0.010)</option>
+              <option value="city">Urban Asphalt (Crr = 0.015)</option>
+              <option value="rough">Rough / Gravel Road (Crr = 0.025)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Road Gradient <span class="live-val" id="val-gradient">0.0 %</span></label>
+            <input type="range" id="input-gradient" min="-12" max="15" value="0" step="0.5">
+          </div>
+
+          <div class="form-group">
+            <label>Passenger Count <span class="live-val" id="val-passengers">1</span></label>
+            <input type="range" id="input-passengers" min="0" max="6" value="1" step="1">
+          </div>
+
+          <div class="form-group">
+            <label>Cargo Weight <span class="live-val" id="val-cargo">20 kg</span></label>
+            <input type="range" id="input-cargo" min="0" max="800" value="20" step="10">
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+          <button class="btn btn-primary" id="btn-save-scenario">Save Current Driving Scenario</button>
+          <button class="btn btn-secondary" id="btn-reset-conditions">Reset to Baseline</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: VEHICLE CONFIG ==================== -->
+    <section id="tab-vehicle-config" class="tab-content" style="display: none;">
+      <div class="telemetry-card">
+        <div class="card-headline">
+          <h2>Vehicle Profile & Powertrain Constraints</h2>
+          <span>CONFIGURABLE ARCHITECTURE</span>
+        </div>
+
+        <div class="controls-grid">
+          <div class="form-group">
+            <label>Preset Vehicle Model</label>
+            <select class="form-control" id="select-preset-vehicle">
+              <option value="hatchback" selected>Compact Hatchback 1.2L (Petrol, 5-Speed)</option>
+              <option value="sedan">Midsize Sedan 2.0L (Diesel, 6-Speed)</option>
+              <option value="motorcycle">Commuter Motorcycle 150cc (5-Speed)</option>
+              <option value="truck">Commercial Cargo Truck 4.5T (6-Speed Diesel)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Curb Weight (kg)</label>
+            <input type="number" class="form-control" id="cfg-curb-weight" value="1050">
+          </div>
+
+          <div class="form-group">
+            <label>Lugging Threshold (RPM)</label>
+            <input type="number" class="form-control" id="cfg-rpm-lug" value="1200">
+          </div>
+
+          <div class="form-group">
+            <label>Eco Sweet Spot Start (RPM)</label>
+            <input type="number" class="form-control" id="cfg-rpm-eco-min" value="1700">
+          </div>
+
+          <div class="form-group">
+            <label>Eco Sweet Spot End (RPM)</label>
+            <input type="number" class="form-control" id="cfg-rpm-eco-max" value="2400">
+          </div>
+
+          <div class="form-group">
+            <label>Engine Redline (RPM)</label>
+            <input type="number" class="form-control" id="cfg-rpm-redline" value="6200">
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+          <button class="btn btn-primary" id="btn-apply-vehicle-cfg">Apply Powertrain Configuration</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: FUEL & BSFC ANALYSIS ==================== -->
+    <section id="tab-fuel-analysis" class="tab-content" style="display: none;">
+      <div class="cockpit-grid">
+        <div class="telemetry-card">
+          <div class="card-headline">
+            <h2>Simulated vs Optimal Fuel Burn</h2>
+            <span>LITERS PER 100 KM</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="background: var(--bg-inset); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--border-subtle); text-align: center;">
+              <div style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase;">Current Selection</div>
+              <div style="font-family: var(--font-mono); font-size: 2.2rem; color: #fff; margin-top: 0.3rem;" id="fuel-stat-current">6.2 L</div>
+              <div style="font-size: 0.75rem; color: var(--text-dim);">per 100 km</div>
+            </div>
+
+            <div style="background: var(--bg-inset); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--brand-emerald-muted); text-align: center;">
+              <div style="font-size: 0.78rem; color: var(--brand-emerald); text-transform: uppercase;">Optimized Gear</div>
+              <div style="font-family: var(--font-mono); font-size: 2.2rem; color: var(--brand-emerald); margin-top: 0.3rem;" id="fuel-stat-opt">5.1 L</div>
+              <div style="font-size: 0.75rem; color: var(--text-dim);" id="fuel-savings-delta">-17.7% potential saving</div>
+            </div>
+          </div>
+
+          <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5;">
+            * <strong>Disclaimer:</strong> Fuel efficiency predictions are derived from aerodynamic drag, rolling resistance, and Brake Specific Fuel Consumption (BSFC) approximations.
+          </p>
+        </div>
+
+        <div class="telemetry-card">
+          <div class="card-headline">
+            <h2>Power & Resistance Breakdown</h2>
+            <span>AERODYNAMIC VS GRADE</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.3rem;">
+                <span>Aero Resistance Drag</span>
+                <span id="drag-aero-label" style="font-family: var(--font-mono); color: var(--brand-cyan);">160 N</span>
+              </div>
+              <div style="height: 6px; background: var(--bg-inset); border-radius: 99px; overflow: hidden;">
+                <div id="bar-aero" style="width: 50%; height: 100%; background: var(--brand-cyan);"></div>
+              </div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.3rem;">
+                <span>Rolling Resistance</span>
+                <span id="drag-rolling-label" style="font-family: var(--font-mono); color: var(--brand-emerald);">140 N</span>
+              </div>
+              <div style="height: 6px; background: var(--bg-inset); border-radius: 99px; overflow: hidden;">
+                <div id="bar-rolling" style="width: 40%; height: 100%; background: var(--brand-emerald);"></div>
+              </div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.3rem;">
+                <span>Gradient Resistance</span>
+                <span id="drag-grade-label" style="font-family: var(--font-mono); color: var(--brand-amber);">40 N</span>
+              </div>
+              <div style="height: 6px; background: var(--bg-inset); border-radius: 99px; overflow: hidden;">
+                <div id="bar-grade" style="width: 10%; height: 100%; background: var(--brand-amber);"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: ECO COACHING ==================== -->
+    <section id="tab-eco-tips" class="tab-content" style="display: none;">
+      <div class="telemetry-card">
+        <div class="card-headline">
+          <h2>Driver Eco-Coaching Directives</h2>
+          <span>CONDITION-AWARE DRIVING PRACTICES</span>
+        </div>
+        <div id="eco-tips-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;">
+          <!-- Dynamically populated via script.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 6: SCENARIO HISTORY ==================== -->
+    <section id="tab-history" class="tab-content" style="display: none;">
+      <div class="telemetry-card">
+        <div class="card-headline">
+          <h2>Saved Scenario Logs</h2>
+          <button class="btn btn-secondary" id="btn-export-csv" style="padding: 0.4rem 0.8rem; font-size: 0.78rem;">Export CSV</button>
+        </div>
+        <div class="matrix-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Vehicle</th>
+                <th>Speed</th>
+                <th>Gear (Engaged ➔ Rec)</th>
+                <th>Engine RPM</th>
+                <th>Est. L/100km</th>
+                <th>Recommendation</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-dim);">No scenarios logged yet. Save one from the Driving Conditions tab.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
