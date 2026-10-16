@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Smart Gear Optimization System — Drive Smart, Save Fuel</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -14,7 +14,7 @@
       <div class="brand-symbol">⚙</div>
       <div class="brand-meta">
         <h1>Smart Gear Optimizer</h1>
-        <p>Drive Smart, Save Fuel — Telemetry & Shift Advisor</p>
+        <p>Drive Smart, Save Fuel — Telemetry & Visual Simulation</p>
       </div>
     </div>
     <div class="system-status">
@@ -38,6 +38,24 @@
 
     <!-- ==================== TAB 1: DASHBOARD ==================== -->
     <section id="tab-dashboard" class="tab-content active">
+
+      <!-- NEW: LIVE VEHICLE MOTION ANIMATION VIEWPORT -->
+      <div class="telemetry-card simulation-card" style="margin-bottom: 1.5rem; padding: 1.2rem;">
+        <div class="card-headline">
+          <h2>Live Road Dynamics & Motion Viewport</h2>
+          <span id="sim-terrain-tag" class="status-tag optimal">HIGHWAY SURFACE</span>
+        </div>
+
+        <div class="simulation-canvas-wrapper">
+          <canvas id="motionCanvas" width="960" height="240"></canvas>
+          <div class="sim-overlay-hud">
+            <span class="sim-badge" id="sim-speed-badge">60 km/h</span>
+            <span class="sim-badge" id="sim-gear-badge">Gear 3</span>
+            <span class="sim-badge" id="sim-rpm-badge">2450 RPM</span>
+          </div>
+        </div>
+      </div>
+
       <div class="cockpit-grid">
         
         <!-- Left: Telemetry & Dial Gauges -->
@@ -153,7 +171,7 @@
         </div>
       </div>
 
-      <!-- Live Backend Pipe Inspector (Shows proof of C++ Server Calls) -->
+      <!-- Live Backend Pipe Inspector -->
       <div class="telemetry-card" style="margin-top: 1.5rem;">
         <div class="card-headline">
           <h2>Live C++ Backend Pipe Inspector</h2>
@@ -186,7 +204,7 @@
             <select class="form-control" id="select-road-type">
               <option value="highway" selected>Smooth Highway (Crr = 0.010)</option>
               <option value="city">Urban Asphalt (Crr = 0.015)</option>
-              <option value="rough">Rough / Gravel Road (Crr = 0.025)</option>
+              <option value="rough">Rough / Offroad Trail (Crr = 0.025)</option>
             </select>
           </div>
 
@@ -218,17 +236,17 @@
       <div class="telemetry-card">
         <div class="card-headline">
           <h2>Vehicle Profile & Powertrain Constraints</h2>
-          <span>CONFIGURABLE ARCHITECTURE</span>
+          <span>SELECT VEHICLE MODEL FOR ANIMATION</span>
         </div>
 
         <div class="controls-grid">
           <div class="form-group">
-            <label>Preset Vehicle Model</label>
+            <label>Select Animated Vehicle</label>
             <select class="form-control" id="select-preset-vehicle">
-              <option value="hatchback" selected>Compact Hatchback 1.2L (Petrol, 5-Speed)</option>
-              <option value="sedan">Midsize Sedan 2.0L (Diesel, 6-Speed)</option>
-              <option value="motorcycle">Commuter Motorcycle 150cc (5-Speed)</option>
-              <option value="truck">Commercial Cargo Truck 4.5T (6-Speed Diesel)</option>
+              <option value="hatchback" selected>Passenger Car (Compact Hatchback 1.2L)</option>
+              <option value="motorcycle">Two-Wheeler Bike (Commuter Motorcycle 150cc)</option>
+              <option value="truck">Commercial Truck (Heavy 4.5T Hauler)</option>
+              <option value="sedan">Executive Sedan 2.0L Diesel</option>
             </select>
           </div>
 

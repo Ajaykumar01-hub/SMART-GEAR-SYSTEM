@@ -1,12 +1,15 @@
 /**
- * SMART GEAR OPTIMIZATION SYSTEM — SCRIPT.JS
- * Connects frontend telemetry directly to C++ server on port 18080.
+ * SMART GEAR OPTIMIZATION SYSTEM — CLIENT SCRIPT & 60-FPS ANIMATION ENGINE
+ * Connects frontend telemetry directly to C++ server on port 18080
+ * Features dynamic Bike, Car, and Truck visual simulation.
  */
 
+// Use local host default (will fallback to JS automatically if C++ server is offline)
 const BACKEND_URL = "http://127.0.0.1:18080/api/optimize";
 
 const VEHICLE_PRESETS = {
   hatchback: {
+    type: "car",
     name: "Compact Hatchback 1.2L",
     curbWeight: 1050,
     cd: 0.31,
@@ -21,6 +24,7 @@ const VEHICLE_PRESETS = {
     baseBSFC: 245
   },
   sedan: {
+    type: "car",
     name: "Midsize Sedan 2.0L Diesel",
     curbWeight: 1520,
     cd: 0.28,
@@ -35,6 +39,7 @@ const VEHICLE_PRESETS = {
     baseBSFC: 210
   },
   motorcycle: {
+    type: "bike",
     name: "Commuter Motorcycle 150cc",
     curbWeight: 140,
     cd: 0.60,
@@ -49,6 +54,7 @@ const VEHICLE_PRESETS = {
     baseBSFC: 290
   },
   truck: {
+    type: "truck",
     name: "Commercial Cargo Truck 4.5T",
     curbWeight: 4200,
     cd: 0.68,
@@ -73,10 +79,14 @@ const state = {
   cargoKg: 20,
   roadType: "highway",
   gradientPct: 0.0,
-  scenarioHistory: []
+  scenarioHistory: [],
+  lastOptimalGear: 4,
+  lastAdvice: "maintain"
 };
 
-// 1. Fetch Call to C++ Backend
+// ==========================================================================
+// 1. BACKEND API FETCHER
+// ==========================================================================
 async function fetchShiftRecommendation() {
   const payload = {
     vehicle: state.vehicle,
@@ -102,39 +112,52 @@ async function fetchShiftRecommendation() {
     const data = await response.json();
     const duration = (performance.now() - startTime).toFixed(1);
 
-    // Update Pipe Inspector
     const latencyEl = document.getElementById("api-latency-badge");
     const reqEl = document.getElementById("inspector-request");
     const resEl = document.getElementById("inspector-response");
     const statusText = document.getElementById("system-status-text");
 
-    if (latencyEl) latencyEl.textContent = `Latency: ${duration} ms (Native C++ Winsock)`;
+    if (latencyEl) latencyEl.textContent = `Latency: ${duration} ms (C++ Port 18080)`;
     if (reqEl) reqEl.textContent = JSON.stringify(payload, null, 2);
     if (resEl) resEl.textContent = JSON.stringify(data, null, 2);
     if (statusText) statusText.textContent = "CONNECTED: C++ OOP ENGINE (PORT 18080)";
 
+    state.lastOptimalGear = data.optimalGear;
+    state.lastAdvice = data.adviceType;
     return data;
   } catch (err) {
     const statusText = document.getElementById("system-status-text");
     if (statusText) statusText.textContent = "C++ OFFLINE — CLIENT FALLBACK";
-    return fallbackLocalSimulation();
+    const data = fallbackLocalSimulation();
+    state.lastOptimalGear = data.optimalGear;
+    state.lastAdvice = data.adviceType;
+    return data;
   }
 }
 
-// 2. Client-Side Fallback if C++ server isn't running
 function fallbackLocalSimulation() {
   const speedMs = state.speed / 3.6;
   const wheelOmega = speedMs / state.vehicle.wheelRadius;
   const ratio = state.vehicle.gearRatios[state.engagedGear - 1];
   const rpm = Math.round((wheelOmega * ratio * state.vehicle.finalDrive * 60) / (2 * Math.PI));
 
+  let advice = "maintain";
+  let optGear = state.engagedGear;
+  if (rpm > state.vehicle.rpmEcoMax && state.engagedGear < state.vehicle.gearRatios.length) {
+    advice = "upshift";
+    optGear = state.engagedGear + 1;
+  } else if (rpm < state.vehicle.rpmLug && state.engagedGear > 1) {
+    advice = "downshift";
+    optGear = state.engagedGear - 1;
+  }
+
   return {
     currentRpm: state.speed > 0 ? rpm : 800,
     currentL100km: 6.2,
-    optimalGear: state.engagedGear,
-    optimalL100km: 5.8,
-    adviceType: "maintain",
-    explanation: "C++ Backend offline. Displaying local client telemetry preview.",
+    optimalGear: optGear,
+    optimalL100km: 5.4,
+    adviceType: advice,
+    explanation: advice === "upshift" ? "High RPM detected; upshift to drop into optimal BSFC efficiency." : (advice === "downshift" ? "Engine lugging; downshift to preserve torque." : "Cruise RPM optimized."),
     drag: { total: 340, aero: 160, rolling: 140, grade: 40 },
     gearEvaluations: state.vehicle.gearRatios.map((r, i) => ({
       gear: i + 1,
@@ -146,10 +169,13 @@ function fallbackLocalSimulation() {
   };
 }
 
-// 3. UI Synchronization
+// ==========================================================================
+// 2. DASHBOARD SYNCHRONIZATION
+// ==========================================================================
 async function refreshDashboard() {
   const res = await fetchShiftRecommendation();
 
+  // Primary Telemetry
   document.getElementById("speed-display").textContent = state.speed;
   document.getElementById("rpm-display").textContent = res.currentRpm;
   document.getElementById("val-speed").textContent = `${state.speed} km/h`;
@@ -157,6 +183,12 @@ async function refreshDashboard() {
   document.getElementById("matrix-speed-badge").textContent = `${state.speed} km/h`;
   document.getElementById("active-vehicle-label").textContent = state.vehicle.name;
 
+  // Mini HUD on canvas
+  document.getElementById("sim-speed-badge").textContent = `${state.speed} km/h`;
+  document.getElementById("sim-gear-badge").textContent = `Gear ${state.engagedGear}`;
+  document.getElementById("sim-rpm-badge").textContent = `${res.currentRpm} RPM`;
+
+  // Gear Advisor HUD
   document.getElementById("current-gear-num").textContent = state.engagedGear;
   document.getElementById("recommended-gear-num").textContent = res.optimalGear;
 
@@ -191,6 +223,7 @@ async function refreshDashboard() {
   document.getElementById("fuel-consumption-rate").textContent = `${res.currentL100km.toFixed(1)} L/100km`;
   document.getElementById("tractive-drag-val").textContent = `${Math.round(res.drag.total)} N`;
 
+  // Update Dials
   drawGauge("speedGauge", state.speed, 0, 180, "km/h");
   drawGauge("rpmGauge", res.currentRpm, 0, state.vehicle.rpmRedline + 1000, "RPM", state.vehicle.rpmEcoMin, state.vehicle.rpmEcoMax, state.vehicle.rpmRedline);
 
@@ -234,7 +267,7 @@ async function refreshDashboard() {
   renderEcoTips(res);
 }
 
-// 4. Dial Gauge Painter (Canvas)
+// Canvas Dial Painter
 function drawGauge(canvasId, value, minVal, maxVal, unit, ecoMin, ecoMax, redline) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
@@ -324,8 +357,329 @@ function renderEcoTips(res) {
   });
 }
 
-// 5. DOM Initialization
+// ==========================================================================
+// 3. 60-FPS REAL-TIME VEHICLE & ROAD ANIMATION ENGINE
+// ==========================================================================
+let animRoadOffset = 0;
+let animWheelAngle = 0;
+
+function startMotionLoop() {
+  const canvas = document.getElementById("motionCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  function renderFrame() {
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Speed determines road scrolling rate
+    const scrollSpeed = (state.speed / 3.6) * 0.75;
+    animRoadOffset = (animRoadOffset + scrollSpeed) % 80;
+    animWheelAngle = (animWheelAngle + scrollSpeed * 0.12) % (Math.PI * 2);
+
+    // 1. Draw Sky & Horizon Backdrop
+    drawBackdrop(ctx, w, h);
+
+    // 2. Draw Dynamic Road Surface (Highway, City, Offroad)
+    drawRoad(ctx, w, h, animRoadOffset);
+
+    // 3. Draw Vehicle (Car, Bike, or Truck)
+    const vehX = w * 0.35;
+    const vehY = h - 65;
+    
+    // Engine vibration jitter
+    const jitter = state.speed > 0 ? (Math.sin(Date.now() * 0.05) * (state.speed > 80 ? 1.5 : 0.8)) : 0;
+
+    const vType = state.vehicle.type || "car";
+    if (vType === "bike") {
+      drawMotorcycle(ctx, vehX, vehY + jitter, animWheelAngle);
+    } else if (vType === "truck") {
+      drawTruck(ctx, vehX, vehY + jitter, animWheelAngle);
+    } else {
+      drawCar(ctx, vehX, vehY + jitter, animWheelAngle);
+    }
+
+    // 4. Draw Floating Real-time Shift Overlays above the vehicle
+    drawShiftHalo(ctx, vehX, vehY);
+
+    requestAnimationFrame(renderFrame);
+  }
+
+  requestAnimationFrame(renderFrame);
+}
+
+// Backdrop based on road type
+function drawBackdrop(ctx, w, h) {
+  const horizon = h * 0.48;
+
+  // Sky Gradient
+  let skyGrad = ctx.createLinearGradient(0, 0, 0, horizon);
+  if (state.roadType === "highway") {
+    skyGrad.addColorStop(0, "#08101e");
+    skyGrad.addColorStop(1, "#12253d");
+  } else if (state.roadType === "city") {
+    skyGrad.addColorStop(0, "#0d1117");
+    skyGrad.addColorStop(1, "#1f2937");
+  } else { // Rough offroad
+    skyGrad.addColorStop(0, "#19110a");
+    skyGrad.addColorStop(1, "#362213");
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, w, horizon);
+
+  // Distant Mountain/City Silhouettes
+  ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+  ctx.beginPath();
+  ctx.moveTo(0, horizon);
+  for (let x = 0; x <= w; x += 60) {
+    const peak = horizon - (state.roadType === "city" ? ((x % 120 === 0) ? 35 : 15) : Math.sin(x * 0.02) * 20 + 15);
+    ctx.lineTo(x, peak);
+  }
+  ctx.lineTo(w, horizon);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Road Surface Rendering
+function drawRoad(ctx, w, h, offset) {
+  const horizon = h * 0.48;
+  const roadHeight = h - horizon;
+
+  // Road Base Color
+  if (state.roadType === "highway") {
+    ctx.fillStyle = "#1a212d";
+  } else if (state.roadType === "city") {
+    ctx.fillStyle = "#15181e";
+  } else {
+    ctx.fillStyle = "#3a2818"; // Gravel / Dirt
+  }
+  ctx.fillRect(0, horizon, w, roadHeight);
+
+  // Road Shoulder / Kerb
+  ctx.fillStyle = state.roadType === "rough" ? "#5a3d24" : "#00d2ff33";
+  ctx.fillRect(0, horizon, w, 4);
+  ctx.fillRect(0, h - 6, w, 6);
+
+  // Moving Lane Dashes
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = state.roadType === "rough" ? "#8c6239" : "#ffffffbb";
+  ctx.setLineDash([35, 30]);
+  ctx.lineDashOffset = -offset;
+
+  // Draw 2 dynamic road lanes
+  ctx.beginPath();
+  ctx.moveTo(0, horizon + roadHeight * 0.5);
+  ctx.lineTo(w, horizon + roadHeight * 0.5);
+  ctx.stroke();
+
+  // Reset line dash
+  ctx.setLineDash([]);
+}
+
+// Draw Car
+function drawCar(ctx, x, y, angle) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Car Body Gradient (Electric Blue / Obsidian)
+  const bodyGrad = ctx.createLinearGradient(-70, -25, 70, 0);
+  bodyGrad.addColorStop(0, "#0099ff");
+  bodyGrad.addColorStop(1, "#00e599");
+
+  // Chassis
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.roundRect(-60, -22, 120, 26, [8, 12, 4, 4]);
+  ctx.fill();
+
+  // Cabin / Windows
+  ctx.fillStyle = "#0c1520";
+  ctx.beginPath();
+  ctx.moveTo(-35, -22);
+  ctx.lineTo(-20, -38);
+  ctx.lineTo(25, -38);
+  ctx.lineTo(40, -22);
+  ctx.closePath();
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "#00d2ff";
+  ctx.stroke();
+
+  // Headlights & Taillights
+  ctx.fillStyle = "#00d2ff"; // Headlight
+  ctx.fillRect(56, -16, 5, 8);
+  ctx.fillStyle = "#ff3366"; // Tail light
+  ctx.fillRect(-61, -16, 4, 7);
+
+  // Light beam on road
+  if (state.speed > 0) {
+    const beam = ctx.createLinearGradient(60, -12, 140, 10);
+    beam.addColorStop(0, "rgba(0, 210, 255, 0.35)");
+    beam.addColorStop(1, "rgba(0, 210, 255, 0)");
+    ctx.fillStyle = beam;
+    ctx.beginPath();
+    ctx.moveTo(60, -14);
+    ctx.lineTo(160, -4);
+    ctx.lineTo(150, 16);
+    ctx.lineTo(60, 4);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Wheels
+  drawWheel(ctx, -36, 6, 14, angle);
+  drawWheel(ctx, 36, 6, 14, angle);
+
+  ctx.restore();
+}
+
+// Draw Motorcycle / Bike
+function drawMotorcycle(ctx, x, y, angle) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Frame
+  ctx.strokeStyle = "#00e599";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(-32, 6);
+  ctx.lineTo(-10, -10);
+  ctx.lineTo(15, -10);
+  ctx.lineTo(32, 6);
+  ctx.stroke();
+
+  // Fuel Tank & Seat
+  ctx.fillStyle = "#00d2ff";
+  ctx.beginPath();
+  ctx.roundRect(-14, -20, 24, 10, [6, 8, 2, 2]);
+  ctx.fill();
+
+  // Rider Helmet & Body
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(-2, -36, 7, 0, Math.PI * 2); // Helmet
+  ctx.fill();
+
+  ctx.strokeStyle = "#4e5d73";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(-2, -29);
+  ctx.lineTo(-4, -14); // Torso
+  ctx.lineTo(10, -18); // Hands to handlebars
+  ctx.stroke();
+
+  // Exhaust
+  ctx.strokeStyle = "#8a9bb2";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-8, 2);
+  ctx.lineTo(-30, 2);
+  ctx.stroke();
+
+  // Bike Wheels (Larger spoke radius)
+  drawWheel(ctx, -32, 6, 15, angle, true);
+  drawWheel(ctx, 32, 6, 15, angle, true);
+
+  ctx.restore();
+}
+
+// Draw Commercial Cargo Truck
+function drawTruck(ctx, x, y, angle) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Cargo Trailer
+  ctx.fillStyle = "#1e293b";
+  ctx.fillRect(-85, -55, 105, 56);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(0, 210, 255, 0.3)";
+  ctx.strokeRect(-85, -55, 105, 56);
+
+  // Cab (Front)
+  ctx.fillStyle = "#0099cc";
+  ctx.beginPath();
+  ctx.roundRect(22, -45, 45, 46, [2, 10, 2, 2]);
+  ctx.fill();
+
+  // Windshield
+  ctx.fillStyle = "#0a131c";
+  ctx.fillRect(45, -40, 18, 18);
+
+  // Headlight
+  ctx.fillStyle = "#00d2ff";
+  ctx.fillRect(64, -12, 4, 8);
+
+  // Tri-Axle Wheels
+  drawWheel(ctx, -65, 5, 13, angle);
+  drawWheel(ctx, -38, 5, 13, angle);
+  drawWheel(ctx, 48, 5, 13, angle);
+
+  ctx.restore();
+}
+
+// Draw Rotating Wheel
+function drawWheel(ctx, wx, wy, radius, angle, isSpoke = false) {
+  ctx.save();
+  ctx.translate(wx, wy);
+  ctx.rotate(angle);
+
+  // Tire rubber
+  ctx.fillStyle = "#11161f";
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = "#334155";
+  ctx.stroke();
+
+  // Rim
+  ctx.fillStyle = "#64748b";
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Spokes
+  ctx.strokeStyle = "#94a3b8";
+  ctx.lineWidth = isSpoke ? 1.5 : 2;
+  for (let i = 0; i < 4; i++) {
+    ctx.rotate(Math.PI / 2);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(radius * 0.85, 0);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// Draw Live Gear Shift Halo Indicator floating above vehicle
+function drawShiftHalo(ctx, x, y) {
+  if (state.lastAdvice === "maintain") return;
+
+  ctx.save();
+  ctx.translate(x, y - 65);
+
+  const isUp = state.lastAdvice === "upshift";
+  const glowColor = isUp ? "#00d2ff" : "#ffb703";
+
+  ctx.font = "bold 12px 'Chakra Petch', sans-serif";
+  ctx.fillStyle = glowColor;
+  ctx.textAlign = "center";
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 10;
+
+  const arrow = isUp ? `▲ SHIFT UP TO GEAR ${state.lastOptimalGear}` : `▼ SHIFT DOWN TO GEAR ${state.lastOptimalGear}`;
+  ctx.fillText(arrow, 0, 0);
+
+  ctx.restore();
+}
+
+// ==========================================================================
+// 4. EVENT BINDINGS & INIT
+// ==========================================================================
 document.addEventListener("DOMContentLoaded", () => {
+  // Navigation Tabs
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -367,24 +721,15 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshDashboard();
   });
 
+  // Road Type Selection changes road texture & drag calculation
   document.getElementById("select-road-type").addEventListener("change", (e) => {
     state.roadType = e.target.value;
+    const tag = document.getElementById("sim-terrain-tag");
+    if (tag) tag.textContent = `${state.roadType.toUpperCase()} SURFACE`;
     refreshDashboard();
   });
 
-  document.getElementById("btn-reset-conditions").addEventListener("click", () => {
-    document.getElementById("input-gradient").value = 0;
-    document.getElementById("input-passengers").value = 1;
-    document.getElementById("input-cargo").value = 20;
-    state.gradientPct = 0;
-    state.passengers = 1;
-    state.cargoKg = 20;
-    document.getElementById("val-gradient").textContent = "0.0 %";
-    document.getElementById("val-passengers").textContent = "1";
-    document.getElementById("val-cargo").textContent = "20 kg";
-    refreshDashboard();
-  });
-
+  // Animated Vehicle Selection (Bike vs Car vs Truck)
   document.getElementById("select-preset-vehicle").addEventListener("change", (e) => {
     state.activeVehicleKey = e.target.value;
     state.vehicle = JSON.parse(JSON.stringify(VEHICLE_PRESETS[state.activeVehicleKey]));
@@ -399,6 +744,7 @@ document.addEventListener("DOMContentLoaded", () => {
     gearSlider.max = gearMax;
     if (state.engagedGear > gearMax) state.engagedGear = gearMax;
     gearSlider.value = state.engagedGear;
+
     refreshDashboard();
   });
 
@@ -409,7 +755,7 @@ document.addEventListener("DOMContentLoaded", () => {
     state.vehicle.rpmEcoMax = parseInt(document.getElementById("cfg-rpm-eco-max").value, 10) || state.vehicle.rpmEcoMax;
     state.vehicle.rpmRedline = parseInt(document.getElementById("cfg-rpm-redline").value, 10) || state.vehicle.rpmRedline;
     refreshDashboard();
-    alert("Vehicle powertrain profile applied!");
+    alert("Vehicle profile and powertrain limits applied!");
   });
 
   document.getElementById("btn-save-scenario").addEventListener("click", () => {
@@ -441,13 +787,13 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         hBody.appendChild(tr);
       });
-      alert("Driving scenario saved to history table!");
+      alert("Scenario logged!");
     });
   });
 
   document.getElementById("btn-export-csv").addEventListener("click", () => {
     if (state.scenarioHistory.length === 0) {
-      alert("No logged scenarios available to export.");
+      alert("No logged scenarios to export.");
       return;
     }
     let csv = "Timestamp,Vehicle,Speed (km/h),Engaged Gear,Recommended Gear,RPM,Est Fuel (L/100km),Advice\n";
@@ -462,5 +808,9 @@ document.addEventListener("DOMContentLoaded", () => {
     a.click();
   });
 
+  // Start 60-FPS Animation loop
+  startMotionLoop();
+
+  // Initial draw
   refreshDashboard();
 });

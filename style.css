@@ -55,6 +55,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  touch-action: manipulation;
 }
 
 body {
@@ -74,7 +75,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2.2rem;
+  padding: 0.9rem 1.6rem;
   background: rgba(8, 11, 17, 0.88);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border-subtle);
@@ -100,7 +101,7 @@ body {
 
 .brand-meta h1 {
   font-family: var(--font-display);
-  font-size: 1.28rem;
+  font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -108,7 +109,7 @@ body {
 }
 
 .brand-meta p {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   color: var(--text-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -119,7 +120,7 @@ body {
   align-items: center;
   gap: 0.65rem;
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   padding: 0.45rem 0.9rem;
   border-radius: 99px;
   background: rgba(0, 229, 153, 0.08);
@@ -148,8 +149,9 @@ body {
   background: var(--bg-secondary);
   border-radius: 12px;
   border: 1px solid var(--border-subtle);
-  margin: 1.5rem 2.2rem 0;
+  margin: 1.2rem 1.6rem 0;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tab-btn {
@@ -182,11 +184,52 @@ body {
 }
 
 .main-viewport {
-  padding: 1.7rem 2.2rem 3rem;
+  padding: 1.4rem 1.6rem 3rem;
   max-width: 1680px;
   margin: 0 auto;
 }
 
+/* ==========================================================================
+   DYNAMIC VEHICLE ANIMATION CANVAS CONTAINER
+   ========================================================================== */
+.simulation-canvas-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0b111a;
+  border: 1px solid rgba(0, 210, 255, 0.25);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) inset;
+}
+
+#motionCanvas {
+  display: block;
+  width: 100%;
+  height: 220px;
+}
+
+.sim-overlay-hud {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  display: flex;
+  gap: 0.6rem;
+  z-index: 5;
+}
+
+.sim-badge {
+  background: rgba(8, 11, 17, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--brand-cyan);
+  font-weight: 600;
+}
+
+/* Cockpit Grid */
 .cockpit-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
@@ -241,7 +284,7 @@ body {
   justify-content: space-around;
   align-items: center;
   gap: 1.5rem;
-  padding: 1.2rem 0;
+  padding: 1rem 0;
 }
 
 .gauge-unit {
@@ -377,7 +420,7 @@ body {
 
 .controls-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.2rem;
   margin-top: 1rem;
 }
@@ -424,18 +467,18 @@ input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
+  height: 8px;
   background: var(--bg-inset);
   border-radius: 99px;
   outline: none;
-  margin: 0.5rem 0;
+  margin: 0.6rem 0;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: var(--brand-cyan);
   cursor: pointer;
@@ -531,14 +574,19 @@ input[type="range"]::-webkit-slider-thumb {
   border-color: var(--border-subtle);
 }
 
+/* ==========================================================================
+   MOBILE & RESPONSIVE PHONE ADAPTATIONS
+   ========================================================================== */
 @media (max-width: 1080px) {
   .cockpit-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {
-  .app-header { flex-direction: column; gap: 0.8rem; align-items: flex-start; padding: 1rem 1.2rem; }
-  .nav-tab-container { margin: 1rem 1.2rem 0; }
-  .main-viewport { padding: 1.2rem; }
+  .app-header { flex-direction: column; gap: 0.6rem; align-items: flex-start; padding: 0.8rem 1rem; }
+  .nav-tab-container { margin: 0.8rem 1rem 0; }
+  .main-viewport { padding: 1rem; }
   .gauges-layout { flex-direction: column; }
   .gear-comparison-strip { grid-template-columns: 1fr; text-align: center; }
+  #motionCanvas { height: 180px; }
+  .readout-value { font-size: 1.8rem; }
 }
